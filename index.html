@@ -158,8 +158,7 @@ B: Perfect, I'll get my coat.</textarea>
 
     <script>
         // ================================================================
-        // 修复：解析对话时先 trim 每一行，兼容手机换行和缩进
-        // 跟读：长按录音，松手评分（不播放原句）
+        // 修复手机端解析问题：标准化换行符、去除不可见字符、增强提示
         // ================================================================
 
         (function() {
@@ -187,7 +186,7 @@ B: Perfect, I'll get my coat.</textarea>
             let dialogues = [];
             let currentIndex = 0;
             let isPlaying = false;
-            let isRepeating = false;       // 是否正在录音（长按中）
+            let isRepeating = false;
             let isRecognizing = false;
             let recognition = null;
             let synth = window.speechSynthesis;
@@ -249,11 +248,17 @@ B: 谢谢！我非常期待。`;
                 return Math.min(100, score);
             }
 
-            // ---------- 解析对话（修复：先 trim 每行） ----------
+            // ---------- 解析对话（强化版） ----------
             function parseDialogue(text) {
-                const lines = text.split(/\n/);
+                // 1. 标准化换行符：将 \r\n 或 \r 统一为 \n
+                let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                // 2. 去除首尾空白
+                normalized = normalized.trim();
+                // 3. 按行拆分
+                const lines = normalized.split('\n');
                 const result = [];
                 const regex = /^([^:：]+)[:：]\s*(.*)$/;
+
                 for (let line of lines) {
                     const trimmed = line.trim();
                     if (trimmed === '') continue;
@@ -261,9 +266,13 @@ B: 谢谢！我非常期待。`;
                     if (match) {
                         const speaker = match[1].trim();
                         const content = match[2].trim();
-                        if (content) result.push({ speaker, text: content, score: null });
+                        if (content) {
+                            result.push({ speaker, text: content, score: null });
+                        } else {
+                            // 如果内容为空，忽略该行
+                        }
                     } else {
-                        // 无法解析的行，作为无名句子
+                        // 无法解析的行，作为无名句子，保留原文本
                         result.push({ speaker: '?', text: trimmed, score: null });
                     }
                 }
@@ -291,7 +300,7 @@ B: 谢谢！我非常期待。`;
                     const icon = isActive ? '👉' : (isDone ? '✅' : '');
                     html += `
                         <div class="${cls}" data-index="${idx}">
-                            <span class="speaker">${item.speaker}</span>
+                            <span class="speaker">${escapeHtml(item.speaker)}</span>
                             <span class="text">${escapeHtml(item.text)}</span>
                             ${scoreText ? `<span class="score-badge">${scoreText}</span>` : ''}
                             ${icon ? `<span class="status-icon">${icon}</span>` : ''}
@@ -347,7 +356,7 @@ B: 谢谢！我非常期待。`;
                 `;
             }
 
-            // ---------- 语音合成 (播放) ----------
+            // ---------- 语音合成 ----------
             function speakCurrent(callback) {
                 if (!dialogues.length || currentIndex >= dialogues.length) {
                     if (callback) callback();
@@ -397,7 +406,7 @@ B: 谢谢！我非常期待。`;
                 return val;
             }
 
-            // ---------- 语音识别 (长按录音) ----------
+            // ---------- 语音识别 ----------
             function initRecognition() {
                 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SR) {
@@ -531,7 +540,7 @@ B: 谢谢！我非常期待。`;
                 });
             }
 
-            // ---------- 跟读：长按录音，松手结束 ----------
+            // ---------- 跟读：长按录音 ----------
             function handleRepeatStart(e) {
                 e.preventDefault();
                 if (isRepeating) return;
@@ -585,7 +594,7 @@ B: 谢谢！我非常期待。`;
                 goToNext();
             }
 
-            // ---------- 解析 ----------
+            // ---------- 解析并渲染 ----------
             function parseAndRender() {
                 if (synth.speaking) synth.cancel();
                 if (isRecognizing && recognition) {
@@ -600,10 +609,15 @@ B: 谢谢！我非常期待。`;
                 currentIndex = 0;
                 renderDialogues();
                 updateScoreDisplay();
+
                 if (dialogues.length > 0) {
                     setStatus(`📖 已解析 ${dialogues.length} 句，点击「播放」或长按「跟读」开始`);
                 } else {
-                    setStatus('⚠️ 未解析到有效对话，请检查格式（如 A: 内容）', false, true);
+                    // 尝试显示文本内容供用户检查
+                    const preview = raw.trim().slice(0, 50);
+                    setStatus(`⚠️ 未解析到有效对话（共 ${raw.split('\n').length} 行），请确保格式如 "A: 内容"`, false, true);
+                    // 同时在控制台输出原始内容（如果用户能查看的话）
+                    console.warn('解析失败，原始文本:', raw);
                 }
             }
 
@@ -614,6 +628,7 @@ B: 谢谢！我非常期待。`;
                 } else {
                     dialogueInput.value = DEFAULT_EXAMPLE;
                 }
+                // 触发解析
                 parseAndRender();
             }
 
@@ -645,7 +660,6 @@ B: 谢谢！我非常期待。`;
             loadExampleBtn.addEventListener('click', loadExample);
             playBtn.addEventListener('click', handlePlay);
 
-            // 跟读按钮：长按录音
             repeatBtn.addEventListener('pointerdown', handleRepeatStart);
             repeatBtn.addEventListener('pointerup', handleRepeatEnd);
             repeatBtn.addEventListener('pointerleave', handleRepeatEnd);
