@@ -158,7 +158,7 @@ B: Perfect, I'll get my coat.</textarea>
 
     <script>
         // ================================================================
-        // 最终版本：播放按钮始终可用，仅当不支持语音合成时给出提示
+        // 最终版：播放按钮始终可点击，但若浏览器不支持 TTS 则提示
         // ================================================================
 
         (function() {
@@ -189,7 +189,7 @@ B: Perfect, I'll get my coat.</textarea>
             let isRepeating = false;
             let isRecognizing = false;
             let recognition = null;
-            let synth = window.speechSynthesis; // 可能为 undefined
+            let synth = window.speechSynthesis;
             let currentUtterance = null;
             let callbackCalled = false;
 
@@ -314,10 +314,15 @@ B: 谢谢！我非常期待。`;
                 const doneCount = dialogues.filter(d => d.score !== null).length;
                 progressDisplay.textContent = `已完成 ${doneCount}/${total} 句`;
 
-                // 启用所有按钮（播放按钮不会被禁用，即使不支持语音）
+                // 始终启用播放按钮（即使不支持 TTS）
                 playBtn.disabled = false;
                 repeatBtn.disabled = false;
                 nextBtn.disabled = false;
+
+                // 如果 TTS 不可用，在状态区给出提示
+                if (!isSpeechSupported && dialogues.length > 0) {
+                    setStatus('⚠️ 当前浏览器不支持语音播放，但「跟读」评分功能可用。建议使用 Chrome 浏览器。', false, true);
+                }
 
                 updateScoreDisplay();
             }
@@ -358,7 +363,7 @@ B: 谢谢！我非常期待。`;
             // ---------- 语音合成 ----------
             function speakCurrent(callback) {
                 if (!isSpeechSupported) {
-                    setStatus('❌ 您的浏览器不支持语音播放', false, true);
+                    setStatus('❌ 当前浏览器不支持语音播放，请使用 Chrome 或 Edge 浏览器', false, true);
                     if (callback) callback();
                     return;
                 }
@@ -549,7 +554,6 @@ B: 谢谢！我非常期待。`;
                         if (isSpeechSupported) {
                             setStatus('🔊 播放完成');
                         }
-                        // 如果不支持，已经在 speakCurrent 里提示了
                     }
                 });
             }
@@ -561,7 +565,6 @@ B: 谢谢！我非常期待。`;
                 if (!dialogues.length) return;
                 if (currentIndex >= dialogues.length) currentIndex = 0;
 
-                // 如果正在播放，停止播放（只有支持语音时才能停）
                 if (isSpeechSupported && synth.speaking) {
                     synth.cancel();
                 }
@@ -637,7 +640,7 @@ B: 谢谢！我非常期待。`;
                         if (isSpeechSupported) {
                             msg += '点击「播放」听原句，长按「跟读」录音评分';
                         } else {
-                            msg += '⚠️ 当前浏览器不支持语音播放，但「跟读」评分功能可用';
+                            msg += '⚠️ 当前浏览器不支持语音播放，但「跟读」评分功能可用。建议使用 Chrome。';
                         }
                         setStatus(msg);
                     } else {
@@ -743,7 +746,7 @@ B: 谢谢！我非常期待。`;
             console.log('🎯 口语练习工具已加载！');
             console.log('💡 点击「播放」听原句，长按「跟读」录音评分');
             if (!isSpeechSupported) {
-                console.warn('⚠️ 当前浏览器不支持语音合成，播放功能不可用，但录音评分仍可使用。');
+                console.warn('⚠️ 当前浏览器不支持语音合成，播放功能不可用，但录音评分仍可使用。建议使用 Chrome 浏览器。');
             }
 
             window.__app = {
