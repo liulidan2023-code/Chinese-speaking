@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎯 口语练习 · 跟读评分</title>
+    <style>
+        /* ===== 全局重置 & 基础 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f0f5fc;
+            color: #1e2a3a;
+            padding: 16px 12px 30px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+        .app {
+            max-width: 720px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 12px 40px rgba(0, 20, 40, 0.10);
+            padding: 24px 20px 30px;
+            transition: box-shadow 0.2s;
+        }
+
+        /* ===== 顶部 ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .title span {
+            background: linear-gradient(135deg, #2b7be4, #1a5fc7);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 0 12px;
+            border-radius: 20px;
+            line-height: 28px;
+            margin-left: 6px;
+        }
+        .speed-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f2f6fc;
+            padding: 4px 14px 4px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .speed-wrap input[type="range"] {
+            width: 100px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #c8d8e8;
+            border-radius: 4px;
+            outline: none;
+            transition: background 0.2s;
+        }
+        .speed-wrap input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2b7be4;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(43, 123, 228, 0.35);
+            border: 2px solid #fff;
+        }
+        .speed-wrap input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2b7be4;
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+        .speed-val {
+            min-width: 38px;
+            text-align: center;
+            font-weight: 600;
+            color: #1a5fc7;
+        }
+
+        /* ===== 输入区 ===== */
+        .input-section {
+            background: #f7faff;
+            border-radius: 18px;
+            padding: 14px 16px 16px;
+            border: 1.5px solid #e6eef8;
+            margin-bottom: 18px;
+            transition: border-color 0.2s;
+        }
+        .input-section:focus-within {
+            border-color: #2b7be4;
+        }
+        .input-section textarea {
+            width: 100%;
+            height: 120px;
+            border: none;
+            background: transparent;
+            resize: vertical;
+            font-size: 15px;
+            line-height: 1.7;
+            font-family: inherit;
+            color: #1e2a3a;
+            outline: none;
+            padding: 2px 0;
+        }
+        .input-section textarea::placeholder {
+            color: #a0b8cf;
+        }
+        .input-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: #e6eef8;
+            color: #1e2a3a;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-primary {
+            background: #2b7be4;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(43, 123, 228, 0.25);
+        }
+        .btn-primary:active {
+            background: #1a5fc7;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid #c8d8e8;
+        }
+        .btn-outline:active {
+            background: #e6eef8;
+        }
+        .btn-success {
+            background: #1fad7a;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(31, 173, 122, 0.25);
+        }
+        .btn-success:active {
+            background: #168f64;
+        }
+        .btn-warning {
+            background: #f5a623;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(245, 166, 35, 0.25);
+        }
+        .btn-warning:active {
+            background: #d98e1a;
+        }
+        .btn-danger {
+            background: #e45c5c;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(228, 92, 92, 0.25);
+        }
+        .btn-danger:active {
+            background: #c94747;
+        }
+        .btn-sm {
+            padding: 5px 14px;
+            font-size: 13px;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            transform: none !important;
+        }
+
+        /* ===== 对话列表 ===== */
+        .dialogue-section {
+            margin-bottom: 18px;
+        }
+        .dialogue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .dialogue-header .counter {
+            font-size: 14px;
+            color: #5a7a9a;
+            font-weight: 500;
+        }
+        .dialogue-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .dialogue-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .dialogue-list::-webkit-scrollbar-thumb {
+            background: #c8d8e8;
+            border-radius: 8px;
+        }
+        .dialogue-item {
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: #f7faff;
+            border-left: 4px solid #c8d8e8;
+            font-size: 15px;
+            line-height: 1.6;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .dialogue-item .speaker {
+            font-weight: 700;
+            color: #2b7be4;
+            min-width: 28px;
+        }
+        .dialogue-item .text {
+            flex: 1;
+            word-break: break-word;
+        }
+        .dialogue-item .score-badge {
+            font-size: 13px;
+            font-weight: 700;
+            padding: 2px 12px;
+            border-radius: 20px;
+            background: #e6eef8;
+            color: #2b7be4;
+            white-space: nowrap;
+        }
+        .dialogue-item.active {
+            background: #e3efff;
+            border-left-color: #2b7be4;
+            box-shadow: 0 2px 8px rgba(43, 123, 228, 0.10);
+        }
+        .dialogue-item.done {
+            border-left-color: #1fad7a;
+            background: #f0faf6;
+        }
+        .dialogue-item .status-icon {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        /* ===== 控制区 ===== */
+        .control-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin: 6px 0 14px;
+        }
+        .control-section .btn {
+            flex: 1 0 auto;
+            min-width: 70px;
+        }
+        .control-section .btn-lg {
+            padding: 12px 18px;
+            font-size: 17px;
+            flex: 1.5 0 auto;
+        }
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #3a5a7a;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+        .toggle-wrap input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #2b7be4;
+            cursor: pointer;
+        }
+
+        /* ===== 状态 & 评分 ===== */
+        .status-area {
+            background: #f7faff;
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1.5px solid #e6eef8;
+            min-height: 60px;
+        }
+        .status-msg {
+            font-size: 15px;
+            color: #3a5a7a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .status-msg .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e6eef8;
+            border-top-color: #2b7be4;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .score-circle {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 800;
+            background: #e6eef8;
+            color: #2b7be4;
+            flex-shrink: 0;
+            transition: all 0.4s;
+        }
+        .score-circle.high {
+            background: #d4f0e6;
+            color: #1fad7a;
+        }
+        .score-circle.mid {
+            background: #fef0d9;
+            color: #f5a623;
+        }
+        .score-circle.low {
+            background: #fde8e8;
+            color: #e45c5c;
+        }
+        .score-label {
+            font-size: 13px;
+            color: #5a7a9a;
+            font-weight: 500;
+        }
+
+        /* ===== 语言选择 ===== */
+        .lang-select {
+            padding: 6px 12px;
+            border-radius: 30px;
+            border: 1.5px solid #c8d8e8;
+            background: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e2a3a;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .lang-select:focus {
+            border-color: #2b7be4;
+        }
+
+        /* ===== 空状态 ===== */
+        .empty-hint {
+            color: #8aaac0;
+            text-align: center;
+            padding: 20px 0 10px;
+            font-size: 14px;
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 500px) {
+            .app {
+                padding: 16px 12px 20px;
+                border-radius: 20px;
+            }
+            .title {
+                font-size: 20px;
+            }
+            .title span {
+                font-size: 12px;
+                line-height: 24px;
+                padding: 0 10px;
+            }
+            .speed-wrap {
+                padding: 2px 10px 2px 12px;
+                font-size: 13px;
+            }
+            .speed-wrap input[type="range"] {
+                width: 70px;
+            }
+            .input-section textarea {
+                height: 90px;
+                font-size: 14px;
+            }
+            .control-section .btn-lg {
+                font-size: 15px;
+                padding: 10px 14px;
+            }
+            .dialogue-item {
+                font-size: 14px;
+                padding: 8px 12px;
+            }
+            .score-circle {
+                width: 48px;
+                height: 48px;
+                font-size: 17px;
+            }
+            .status-area {
+                padding: 12px 14px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .score-display {
+                justify-content: flex-end;
+            }
+        }
+        @media (max-width: 380px) {
+            .control-section .btn {
+                font-size: 13px;
+                padding: 8px 12px;
+                min-width: 56px;
+            }
+            .toggle-wrap {
+                font-size: 12px;
+            }
+        }
+
+        /* ===== 工具类 ===== */
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .flex-center {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .gap-4 {
+            gap: 4px;
+        }
+        .text-muted {
+            color: #8aaac0;
+            font-size: 13px;
+        }
+        .w-full {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app" id="app">
+
+        <!-- ===== 顶部 ===== -->
+        <div class="header">
+            <div class="title">
+                🎯 口语练习
+                <span>跟读</span>
+            </div>
+            <div class="speed-wrap">
+                <span>🐢</span>
+                <input type="range" id="speedRange" min="0.5" max="2.0" step="0.05" value="1.0">
+                <span>🐇</span>
+                <span class="speed-val" id="speedVal">1.0×</span>
+            </div>
+        </div>
+
+        <!-- ===== 输入区 ===== -->
+        <div class="input-section">
+            <textarea id="dialogueInput" placeholder="在此输入对话，格式：&#10;A: 你好，最近怎么样？&#10;B: 我很好，谢谢！&#10;A: 周末有什么计划？">A: Hello, how are you doing today?
+                B: I'm doing great, thank you for asking!
+                A: Would you like to go for a walk?
+                B: That sounds like a wonderful idea.
+                A: Let's go to the park then.
+            B: Perfect, I'll get my coat.</textarea>
+            <div class="input-tools">
+                <button class="btn btn-primary" id="parseBtn">📝 解析对话</button>
+                <button class="btn btn-outline btn-sm" id="loadExampleBtn">📋 加载示例</button>
+                <select class="lang-select" id="langSelect">
+                    <option value="en-US">🇬🇧 英文</option>
+                    <option value="zh-CN">🇨🇳 中文</option>
+                    <option value="auto">🌐 自动</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- ===== 对话列表 ===== -->
+        <div class="dialogue-section">
+            <div class="dialogue-header">
+                <span class="counter" id="counterDisplay">共 0 句</span>
+                <span class="text-muted" id="progressDisplay">—</span>
+            </div>
+            <div class="dialogue-list" id="dialogueList">
+                <div class="empty-hint">👆 输入对话并点击「解析对话」</div>
+            </div>
+        </div>
+
+        <!-- ===== 控制区 ===== -->
+        <div class="control-section">
+            <button class="btn btn-primary btn-lg" id="playBtn" disabled>▶ 播放</button>
+            <button class="btn btn-success btn-lg" id="repeatBtn" disabled>🎤 跟读</button>
+            <button class="btn btn-outline" id="nextBtn" disabled>⏭ 下一句</button>
+            <div class="toggle-wrap">
+                <input type="checkbox" id="autoNextCheck" checked>
+                <label for="autoNextCheck">自动下一句</label>
+            </div>
+        </div>
+
+        <!-- ===== 状态 & 评分 ===== -->
+        <div class="status-area" id="statusArea">
+            <div class="status-msg" id="statusMsg">
+                <span>💡 解析对话后开始练习</span>
+            </div>
+            <div class="score-display">
+                <div class="score-circle" id="scoreCircle">—</div>
+                <div>
+                    <div class="score-label">相似度</div>
+                    <div class="score-label" style="font-size:12px; color:#8aaac0;" id="scoreDetail">等待评分</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ================================================================
+        //  JavaScript — 完整功能
+        // ================================================================
+
+        (function() {
+            'use strict';
+
+            // ---------- DOM refs ----------
+            const dialogueInput = document.getElementById('dialogueInput');
+            const parseBtn = document.getElementById('parseBtn');
+            const loadExampleBtn = document.getElementById('loadExampleBtn');
+            const langSelect = document.getElementById('langSelect');
+            const dialogueList = document.getElementById('dialogueList');
+            const counterDisplay = document.getElementById('counterDisplay');
+            const progressDisplay = document.getElementById('progressDisplay');
+            const playBtn = document.getElementById('playBtn');
+            const repeatBtn = document.getElementById('repeatBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const autoNextCheck = document.getElementById('autoNextCheck');
+            const speedRange = document.getElementById('speedRange');
+            const speedVal = document.getElementById('speedVal');
+            const statusMsg = document.getElementById('statusMsg');
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreDetail = document.getElementById('scoreDetail');
+
+            // ---------- State ----------
+            let dialogues = []; // [{speaker, text, score?}]
+            let currentIndex = 0;
+            let isPlaying = false;
+            let isRepeating = false;
+            let isRecognizing = false;
+            let recognition = null;
+            let synth = window.speechSynthesis;
+            let currentUtterance = null;
+            let repeatTimeout = null;
+            let isPaused = false;
+
+            // ---------- 默认示例 ----------
+            const DEFAULT_EXAMPLE = `A: Hello, how are you doing today?
+            B: I'm doing great, thank you for asking!
+            A: Would you like to go for a walk?
+            B: That sounds like a wonderful idea.
+            A: Let's go to the park then.
+            B: Perfect, I'll get my coat.`;
+
+            const CN_EXAMPLE = `A: 你好，今天过得怎么样？
+            B: 我很好，谢谢关心！
+            A: 周末有什么计划吗？
+            B: 我打算和家人一起去海边。
+            A: 听起来很棒！祝你们玩得开心。
+            B: 谢谢！我非常期待。`;
+
+            // ---------- 工具：编辑距离 (Levenshtein) ----------
+            function levenshteinDistance(a, b) {
+                if (a.length === 0) return b.length;
+                if (b.length === 0) return a.length;
+                const matrix = [];
+                for (let i = 0; i <= b.length; i++) {
+                    matrix[i] = [i];
+                }
+                for (let j = 0; j <= a.length; j++) {
+                    matrix[0][j] = j;
+                }
+                for (let i = 1; i <= b.length; i++) {
+                    for (let j = 1; j <= a.length; j++) {
+                        const cost = a[j - 1] === b[i - 1] ? 0 : 1;
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j - 1] + cost
+                        );
+                    }
+                }
+                return matrix[b.length][a.length];
+            }
+
+            function similarityScore(original, spoken) {
+                if (!original || !spoken) return 0;
+                // 预处理：去首尾空格、转小写（英文）、去多余空格
+                const clean = (s) => {
+                    let str = s.trim();
+                    // 英文转小写
+                    if (langSelect.value === 'en-US' || langSelect.value === 'auto') {
+                        str = str.toLowerCase();
+                    }
+                    // 合并多个空格为一个
+                    str = str.replace(/\s+/g, ' ');
+                    return str;
+                };
+                const o = clean(original);
+                const s = clean(spoken);
+                if (o.length === 0 && s.length === 0) return 100;
+                if (o.length === 0 || s.length === 0) return 0;
+                const dist = levenshteinDistance(o, s);
+                const maxLen = Math.max(o.length, s.length);
+                const score = Math.max(0, Math.round((1 - dist / maxLen) * 100));
+                return Math.min(100, score);
+            }
+
+            // ---------- 解析对话 ----------
+            function parseDialogue(text) {
+                const lines = text.split(/\n/).filter(line => line.trim() !== '');
+                const result = [];
+                // 匹配 "说话人: 内容" 或 "说话人：内容"
+                const regex = /^([^:：]+)[:：]\s*(.*)$/;
+                for (const line of lines) {
+                    const match = line.match(regex);
+                    if (match) {
+                        const speaker = match[1].trim();
+                        const content = match[2].trim();
+                        if (content) {
+                            result.push({ speaker, text: content, score: null });
+                        }
+                    } else {
+                        // 无法解析的行，作为纯文本（忽略或作为无说话人）
+                        // 为了友好，我们把它当作一个无说话人的句子
+                        if (line.trim()) {
+                            result.push({ speaker: '?', text: line.trim(), score: null });
+                        }
+                    }
+                }
+                return result;
+            }
+
+            // ---------- 渲染对话列表 ----------
+            function renderDialogues() {
+                if (!dialogues || dialogues.length === 0) {
+                    dialogueList.innerHTML = `<div class="empty-hint">👆 输入对话并点击「解析对话」</div>`;
+                    counterDisplay.textContent = '共 0 句';
+                    progressDisplay.textContent = '—';
+                    playBtn.disabled = true;
+                    repeatBtn.disabled = true;
+                    nextBtn.disabled = true;
+                    return;
+                }
+
+                let html = '';
+                dialogues.forEach((item, idx) => {
+                    const isActive = idx === currentIndex;
+                    const isDone = item.score !== null && item.score !== undefined;
+                    const scoreText = item.score !== null ? `${item.score}分` : '';
+                    const cls = `dialogue-item${isActive ? ' active' : ''}${isDone ? ' done' : ''}`;
+                    const icon = isActive ? '👉' : (isDone ? '✅' : '');
+                    html += `
+                        <div class="${cls}" data-index="${idx}">
+                            <span class="speaker">${item.speaker}</span>
+                            <span class="text">${escapeHtml(item.text)}</span>
+                            ${scoreText ? `<span class="score-badge">${scoreText}</span>` : ''}
+                            ${icon ? `<span class="status-icon">${icon}</span>` : ''}
+                        </div>
+                    `;
+                });
+                dialogueList.innerHTML = html;
+
+                // 滚动到当前项
+                const activeEl = dialogueList.querySelector('.dialogue-item.active');
+                if (activeEl) {
+                    activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+
+                counterDisplay.textContent = `共 ${dialogues.length} 句`;
+                const total = dialogues.length;
+                const doneCount = dialogues.filter(d => d.score !== null).length;
+                progressDisplay.textContent = `已完成 ${doneCount}/${total} 句`;
+
+                playBtn.disabled = false;
+                repeatBtn.disabled = false;
+                nextBtn.disabled = false;
+                updateScoreDisplay();
+            }
+
+            // 简单防XSS
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            // ---------- 更新评分显示 ----------
+            function updateScoreDisplay() {
+                const item = dialogues[currentIndex];
+                if (item && item.score !== null && item.score !== undefined) {
+                    const s = item.score;
+                    scoreCircle.textContent = s;
+                    scoreCircle.className = 'score-circle';
+                    if (s >= 80) scoreCircle.classList.add('high');
+                    else if (s >= 60) scoreCircle.classList.add('mid');
+                    else scoreCircle.classList.add('low');
+                    scoreDetail.textContent = `当前句得分`;
+                } else {
+                    scoreCircle.textContent = '—';
+                    scoreCircle.className = 'score-circle';
+                    scoreDetail.textContent = '等待评分';
+                }
+            }
+
+            // ---------- 设置状态消息 ----------
+            function setStatus(msg, isSpinner = false, isError = false) {
+                const icon = isError ? '❌' : (isSpinner ? '' : '💡');
+                const spinnerHtml = isSpinner ? '<span class="spinner"></span>' : '';
+                statusMsg.innerHTML = `
+                    ${icon ? `<span>${icon}</span>` : ''}
+                    ${spinnerHtml}
+                    <span>${msg}</span>
+                `;
+            }
+
+            // ---------- 语音合成：播放当前句 ----------
+            function speakCurrent(callback) {
+                if (!dialogues.length || currentIndex >= dialogues.length) {
+                    if (callback) callback();
+                    return;
+                }
+                const item = dialogues[currentIndex];
+                const text = item.text;
+                const rate = parseFloat(speedRange.value) || 1.0;
+
+                // 取消任何正在进行的语音
+                if (synth.speaking) {
+                    synth.cancel();
+                }
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = getSpeechLang();
+                utterance.rate = rate;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+
+                // 选择语音（首选同语言）
+                const voices = synth.getVoices();
+                const preferred = voices.find(v => v.lang.startsWith(utterance.lang.split('-')[0]));
+                if (preferred) utterance.voice = preferred;
+
+                currentUtterance = utterance;
+                isPlaying = true;
+                setStatus('🔊 播放中...', true);
+
+                utterance.onend = function() {
+                    isPlaying = false;
+                    currentUtterance = null;
+                    if (callback) callback();
+                };
+                utterance.onerror = function(e) {
+                    console.warn('Speech synthesis error:', e);
+                    isPlaying = false;
+                    currentUtterance = null;
+                    if (callback) callback();
+                };
+
+                synth.speak(utterance);
+            }
+
+            // ---------- 获取语音语言 ----------
+            function getSpeechLang() {
+                const val = langSelect.value;
+                if (val === 'auto') {
+                    // 简单检测：如果包含中文字符则用中文
+                    const text = dialogues[currentIndex]?.text || '';
+                    return /[\u4e00-\u9fff]/.test(text) ? 'zh-CN' : 'en-US';
+                }
+                return val;
+            }
+
+            // ---------- 语音识别 ----------
+            function initRecognition() {
+                const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SR) {
+                    setStatus('❌ 浏览器不支持语音识别，请使用 Chrome 或 Edge', false, true);
+                    return null;
+                }
+                const rec = new SR();
+                const lang = getSpeechLang();
+                rec.lang = lang;
+                rec.continuous = false;
+                rec.interimResults = false;
+                rec.maxAlternatives = 1;
+                return rec;
+            }
+
+            function startRecognition(callback) {
+                if (isRecognizing) {
+                    if (recognition) recognition.abort();
+                    isRecognizing = false;
+                }
+                recognition = initRecognition();
+                if (!recognition) {
+                    if (callback) callback(null);
+                    return;
+                }
+
+                isRecognizing = true;
+                setStatus('🎤 请开始跟读...', true);
+
+                let recognizedText = '';
+
+                recognition.onresult = function(event) {
+                    const result = event.results[0];
+                    if (result && result.isFinal) {
+                        recognizedText = result[0].transcript.trim();
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    console.warn('Recognition error:', event.error);
+                    isRecognizing = false;
+                    if (event.error === 'not-allowed') {
+                        setStatus('❌ 请允许使用麦克风权限后重试', false, true);
+                    } else if (event.error === 'no-speech') {
+                        setStatus('⏳ 未检测到语音，请重试', false, true);
+                    } else {
+                        setStatus(`❌ 识别错误: ${event.error}`, false, true);
+                    }
+                    if (callback) callback(null);
+                };
+
+                recognition.onend = function() {
+                    isRecognizing = false;
+                    if (recognizedText) {
+                        // 识别成功
+                        const original = dialogues[currentIndex]?.text || '';
+                        const score = similarityScore(original, recognizedText);
+                        dialogues[currentIndex].score = score;
+                        renderDialogues();
+                        setStatus(`✅ 识别完成: "${recognizedText}"`, false);
+                        if (callback) callback(score);
+                    } else if (!callback) {
+                        // 没有结果且没有回调，可能超时
+                        setStatus('⏳ 没有识别到内容，请重试', false, true);
+                    }
+                };
+
+                // 开始识别
+                try {
+                    recognition.start();
+                    // 超时保护
+                    setTimeout(() => {
+                        if (isRecognizing) {
+                            recognition.abort();
+                            isRecognizing = false;
+                            setStatus('⏳ 识别超时，请重试', false, true);
+                            if (callback) callback(null);
+                        }
+                    }, 10000);
+                } catch (e) {
+                    console.warn('Recognition start error:', e);
+                    isRecognizing = false;
+                    setStatus('❌ 无法启动语音识别，请重试', false, true);
+                    if (callback) callback(null);
+                }
+            }
+
+            // ---------- 核心操作 ----------
+            function goToNext() {
+                if (!dialogues.length) return;
+                if (currentIndex < dialogues.length - 1) {
+                    currentIndex++;
+                    renderDialogues();
+                    updateScoreDisplay();
+                    setStatus(`📖 第 ${currentIndex + 1} 句`);
+                } else {
+                    setStatus('🎉 全部完成！很棒！');
+                }
+            }
+
+            // 播放当前句（仅播放）
+            function handlePlay() {
+                if (isPlaying) {
+                    if (synth.speaking) synth.cancel();
+                    isPlaying = false;
+                    setStatus('⏹ 已停止');
+                    return;
+                }
+                if (!dialogues.length) return;
+                if (currentIndex >= dialogues.length) currentIndex = 0;
+
+                speakCurrent(() => {
+                    if (autoNextCheck.checked && !isRepeating) {
+                        goToNext();
+                    } else {
+                        setStatus('🔊 播放完成');
+                    }
+                });
+            }
+
+            // 跟读
+            function handleRepeat() {
+                if (isRepeating) {
+                    // 如果正在跟读，取消
+                    if (synth.speaking) synth.cancel();
+                    if (isRecognizing && recognition) {
+                        recognition.abort();
+                        isRecognizing = false;
+                    }
+                    isRepeating = false;
+                    setStatus('⏹ 已取消跟读');
+                    return;
+                }
+                if (!dialogues.length) return;
+                if (currentIndex >= dialogues.length) currentIndex = 0;
+
+                // 如果当前句已有评分，先重置（允许重新跟读）
+                // 但保留旧评分，新评分会覆盖
+                isRepeating = true;
+                setStatus('🔊 播放原句，请准备跟读...', true);
+
+                // 先播放
+                speakCurrent(() => {
+                    if (!isRepeating) return; // 被取消
+                    // 播放完成后启动识别
+                    setStatus('🎤 请开始跟读...', true);
+                    startRecognition((score) => {
+                        isRepeating = false;
+                        if (score !== null && score !== undefined) {
+                            dialogues[currentIndex].score = score;
+                            renderDialogues();
+                            updateScoreDisplay();
+                            setStatus(`✅ 得分 ${score} 分`);
+                            // 自动下一句
+                            if (autoNextCheck.checked) {
+                                setTimeout(() => {
+                                    goToNext();
+                                }, 1200);
+                            }
+                        } else {
+                            setStatus('⏳ 跟读未完成，请重试', false, true);
+                        }
+                    });
+                });
+            }
+
+            // 下一句
+            function handleNext() {
+                if (isPlaying) {
+                    if (synth.speaking) synth.cancel();
+                    isPlaying = false;
+                }
+                if (isRepeating) {
+                    if (isRecognizing && recognition) {
+                        recognition.abort();
+                        isRecognizing = false;
+                    }
+                    isRepeating = false;
+                }
+                goToNext();
+            }
+
+            // ---------- 解析并初始化 ----------
+            function parseAndRender() {
+                // 取消所有语音
+                if (synth.speaking) synth.cancel();
+                if (isRecognizing && recognition) {
+                    recognition.abort();
+                    isRecognizing = false;
+                }
+                isPlaying = false;
+                isRepeating = false;
+
+                const raw = dialogueInput.value;
+                dialogues = parseDialogue(raw);
+                currentIndex = 0;
+                renderDialogues();
+                updateScoreDisplay();
+                if (dialogues.length > 0) {
+                    setStatus(`📖 已解析 ${dialogues.length} 句，点击「播放」或「跟读」开始`);
+                } else {
+                    setStatus('⚠️ 未解析到有效对话，请检查格式', false, true);
+                }
+            }
+
+            // ---------- 加载示例 ----------
+            function loadExample() {
+                const currentLang = langSelect.value;
+                if (currentLang === 'zh-CN') {
+                    dialogueInput.value = CN_EXAMPLE;
+                } else {
+                    dialogueInput.value = DEFAULT_EXAMPLE;
+                }
+                parseAndRender();
+            }
+
+            // ---------- 语速显示 ----------
+            speedRange.addEventListener('input', function() {
+                const val = parseFloat(this.value).toFixed(1);
+                speedVal.textContent = val + '×';
+            });
+
+            // ---------- 语言切换：自动更新示例 ----------
+            langSelect.addEventListener('change', function() {
+                // 如果当前内容是默认英文示例，则切换为中文示例（反之亦然）
+                const current = dialogueInput.value.trim();
+                const isDefaultEn = current === DEFAULT_EXAMPLE.trim();
+                const isDefaultCn = current === CN_EXAMPLE.trim();
+                if (isDefaultEn && this.value === 'zh-CN') {
+                    dialogueInput.value = CN_EXAMPLE;
+                } else if (isDefaultCn && this.value !== 'zh-CN') {
+                    dialogueInput.value = DEFAULT_EXAMPLE;
+                }
+                // 不自动解析，让用户手动点击
+            });
+
+            // ---------- 加载语音列表（某些浏览器需要） ----------
+            if (synth) {
+                synth.getVoices(); // 预加载
+                synth.onvoiceschanged = function() {
+                    synth.getVoices();
+                };
+            }
+
+            // ---------- 事件绑定 ----------
+            parseBtn.addEventListener('click', parseAndRender);
+
+            loadExampleBtn.addEventListener('click', loadExample);
+
+            playBtn.addEventListener('click', handlePlay);
+
+            repeatBtn.addEventListener('click', handleRepeat);
+
+            nextBtn.addEventListener('click', handleNext);
+
+            // 点击对话项跳转
+            dialogueList.addEventListener('click', function(e) {
+                const item = e.target.closest('.dialogue-item');
+                if (!item) return;
+                const idx = parseInt(item.dataset.index, 10);
+                if (!isNaN(idx) && idx >= 0 && idx < dialogues.length && idx !== currentIndex) {
+                    if (isPlaying) {
+                        if (synth.speaking) synth.cancel();
+                        isPlaying = false;
+                    }
+                    if (isRepeating) {
+                        if (isRecognizing && recognition) {
+                            recognition.abort();
+                            isRecognizing = false;
+                        }
+                        isRepeating = false;
+                    }
+                    currentIndex = idx;
+                    renderDialogues();
+                    updateScoreDisplay();
+                    setStatus(`📖 第 ${currentIndex + 1} 句`);
+                }
+            });
+
+            // 键盘快捷键：空格播放/暂停
+            document.addEventListener('keydown', function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')
+                    return;
+                if (e.key === ' ' || e.key === 'Space') {
+                    e.preventDefault();
+                    if (playBtn.disabled) return;
+                    handlePlay();
+                }
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    if (repeatBtn.disabled) return;
+                    handleRepeat();
+                }
+            });
+
+            // ---------- 初始化 ----------
+            // 默认加载英文示例
+            dialogueInput.value = DEFAULT_EXAMPLE;
+            // 延迟解析让DOM完全渲染
+            setTimeout(() => {
+                parseAndRender();
+                // 预加载语音
+                if (synth) {
+                    setTimeout(() => { synth.getVoices(); }, 200);
+                }
+            }, 100);
+
+            // 窗口resize时重绘无特殊处理
+
+            console.log('🎯 口语练习工具已加载！');
+            console.log('💡 快捷键: 空格=播放/停止, Ctrl+Enter=跟读');
+
+            // 暴露一些变量方便调试 (非必须)
+            window.__app = {
+                dialogues: () => dialogues,
+                currentIndex: () => currentIndex,
+                parse: parseAndRender,
+                goNext: goToNext,
+            };
+
+        })();
+    </script>
+
+</body>
+</html>
