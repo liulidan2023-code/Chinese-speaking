@@ -157,9 +157,9 @@ B: Perfect, I'll get my coat.</textarea>
     </div>
 
     <script>
-    console.log("JS START");
         // ================================================================
-        // 修复手机端解析问题：标准化换行符、去除不可见字符、增强提示
+        // 修复手机端解析问题：统一使用 click 事件，移除多余 touchend
+        // 增加错误捕获，提升兼容性
         // ================================================================
 
         (function() {
@@ -600,30 +600,33 @@ B: 谢谢！我非常期待。`;
                 goToNext();
             }
 
-            // ---------- 解析并渲染 ----------
+            // ---------- 解析并渲染（增强错误捕获） ----------
             function parseAndRender() {
-                if (synth.speaking) synth.cancel();
-                if (isRecognizing && recognition) {
-                    recognition.abort();
-                    isRecognizing = false;
-                }
-                isPlaying = false;
-                isRepeating = false;
+                try {
+                    if (synth.speaking) synth.cancel();
+                    if (isRecognizing && recognition) {
+                        recognition.abort();
+                        isRecognizing = false;
+                    }
+                    isPlaying = false;
+                    isRepeating = false;
 
-                const raw = dialogueInput.value;
-                dialogues = parseDialogue(raw);
-                currentIndex = 0;
-                renderDialogues();
-                updateScoreDisplay();
+                    const raw = dialogueInput.value;
+                    dialogues = parseDialogue(raw);
+                    currentIndex = 0;
+                    renderDialogues();
+                    updateScoreDisplay();
 
-                if (dialogues.length > 0) {
-                    setStatus(`📖 已解析 ${dialogues.length} 句，点击「播放」或长按「跟读」开始`);
-                } else {
-                    // 尝试显示文本内容供用户检查
-                    const preview = raw.trim().slice(0, 50);
-                    setStatus(`⚠️ 未解析到有效对话（共 ${raw.split('\n').length} 行），请确保格式如 "A: 内容"`, false, true);
-                    // 同时在控制台输出原始内容（如果用户能查看的话）
-                    console.warn('解析失败，原始文本:', raw);
+                    if (dialogues.length > 0) {
+                        setStatus(`📖 已解析 ${dialogues.length} 句，点击「播放」或长按「跟读」开始`);
+                    } else {
+                        const lineCount = raw.split('\n').length;
+                        setStatus(`⚠️ 未解析到有效对话（共 ${lineCount} 行），请确保格式如 "A: 内容"`, false, true);
+                        console.warn('解析失败，原始文本:', raw);
+                    }
+                } catch (err) {
+                    console.error('解析错误:', err);
+                    setStatus(`❌ 解析出错: ${err.message}`, false, true);
                 }
             }
 
@@ -634,7 +637,6 @@ B: 谢谢！我非常期待。`;
                 } else {
                     dialogueInput.value = DEFAULT_EXAMPLE;
                 }
-                // 触发解析
                 parseAndRender();
             }
 
@@ -662,20 +664,16 @@ B: 谢谢！我非常期待。`;
                 };
             }
 
-            parseBtn.onclick = function () {
-                alert("按钮点击成功");
-                parseAndRender();
-            };
-            parseBtn.addEventListener('touchend', function(e){
-                e.preventDefault();
-                parseAndRender();
-            });
+            // 所有按钮统一使用 click 事件（手机完美支持）
+            parseBtn.addEventListener('click', parseAndRender);
             loadExampleBtn.addEventListener('click', loadExample);
             playBtn.addEventListener('click', handlePlay);
 
+            // 跟读按钮使用 pointer 事件实现长按
             repeatBtn.addEventListener('pointerdown', handleRepeatStart);
             repeatBtn.addEventListener('pointerup', handleRepeatEnd);
             repeatBtn.addEventListener('pointerleave', handleRepeatEnd);
+            // 阻止 click 以免和 pointer 冲突
             repeatBtn.addEventListener('click', function(e) { e.preventDefault(); });
 
             nextBtn.addEventListener('click', handleNext);
