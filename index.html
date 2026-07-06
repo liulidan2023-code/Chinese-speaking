@@ -158,8 +158,7 @@ B: Perfect, I'll get my coat.</textarea>
 
     <script>
         // ================================================================
-        // 修复手机端解析问题：统一使用 click 事件，移除多余 touchend
-        // 增加错误捕获，提升兼容性
+        // 最终版本：播放按钮始终可用，仅当不支持语音合成时给出提示
         // ================================================================
 
         (function() {
@@ -190,9 +189,12 @@ B: Perfect, I'll get my coat.</textarea>
             let isRepeating = false;
             let isRecognizing = false;
             let recognition = null;
-            let synth = window.speechSynthesis;
+            let synth = window.speechSynthesis; // 可能为 undefined
             let currentUtterance = null;
             let callbackCalled = false;
+
+            // 检测语音合成是否可用
+            const isSpeechSupported = (typeof synth !== 'undefined' && synth !== null);
 
             // ---------- 示例 ----------
             const DEFAULT_EXAMPLE = `A: Hello, how are you doing today?
@@ -249,13 +251,10 @@ B: 谢谢！我非常期待。`;
                 return Math.min(100, score);
             }
 
-            // ---------- 解析对话（强化版） ----------
+            // ---------- 解析对话 ----------
             function parseDialogue(text) {
-                // 1. 标准化换行符：将 \r\n 或 \r 统一为 \n
                 let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-                // 2. 去除首尾空白
                 normalized = normalized.trim();
-                // 3. 按行拆分
                 const lines = normalized.split('\n');
                 const result = [];
                 const regex = /^([^:：]+)[:：]\s*(.*)$/;
@@ -269,11 +268,8 @@ B: 谢谢！我非常期待。`;
                         const content = match[2].trim();
                         if (content) {
                             result.push({ speaker, text: content, score: null });
-                        } else {
-                            // 如果内容为空，忽略该行
                         }
                     } else {
-                        // 无法解析的行，作为无名句子，保留原文本
                         result.push({ speaker: '?', text: trimmed, score: null });
                     }
                 }
@@ -318,9 +314,11 @@ B: 谢谢！我非常期待。`;
                 const doneCount = dialogues.filter(d => d.score !== null).length;
                 progressDisplay.textContent = `已完成 ${doneCount}/${total} 句`;
 
+                // 启用所有按钮（播放按钮不会被禁用，即使不支持语音）
                 playBtn.disabled = false;
                 repeatBtn.disabled = false;
                 nextBtn.disabled = false;
+
                 updateScoreDisplay();
             }
 
@@ -359,6 +357,11 @@ B: 谢谢！我非常期待。`;
 
             // ---------- 语音合成 ----------
             function speakCurrent(callback) {
+                if (!isSpeechSupported) {
+                    setStatus('❌ 您的浏览器不支持语音播放', false, true);
+                    if (callback) callback();
+                    return;
+                }
                 if (!dialogues.length || currentIndex >= dialogues.length) {
                     if (callback) callback();
                     return;
@@ -529,7 +532,9 @@ B: 谢谢！我非常期待。`;
 
             function handlePlay() {
                 if (isPlaying) {
-                    if (synth.speaking) synth.cancel();
+                    if (isSpeechSupported && synth.speaking) {
+                        synth.cancel();
+                    }
                     isPlaying = false;
                     setStatus('⏹ 已停止');
                     return;
@@ -541,7 +546,10 @@ B: 谢谢！我非常期待。`;
                     if (autoNextCheck.checked && !isRepeating) {
                         goToNext();
                     } else {
-                        setStatus('🔊 播放完成');
+                        if (isSpeechSupported) {
+                            setStatus('🔊 播放完成');
+                        }
+                        // 如果不支持，已经在 speakCurrent 里提示了
                     }
                 });
             }
@@ -553,7 +561,10 @@ B: 谢谢！我非常期待。`;
                 if (!dialogues.length) return;
                 if (currentIndex >= dialogues.length) currentIndex = 0;
 
-                if (synth.speaking) synth.cancel();
+                // 如果正在播放，停止播放（只有支持语音时才能停）
+                if (isSpeechSupported && synth.speaking) {
+                    synth.cancel();
+                }
                 if (isPlaying) isPlaying = false;
 
                 isRepeating = true;
@@ -587,7 +598,9 @@ B: 谢谢！我非常期待。`;
 
             function handleNext() {
                 if (isPlaying) {
-                    if (synth.speaking) synth.cancel();
+                    if (isSpeechSupported && synth.speaking) {
+                        synth.cancel();
+                    }
                     isPlaying = false;
                 }
                 if (isRepeating) {
@@ -600,10 +613,12 @@ B: 谢谢！我非常期待。`;
                 goToNext();
             }
 
-            // ---------- 解析并渲染（增强错误捕获） ----------
+            // ---------- 解析并渲染 ----------
             function parseAndRender() {
                 try {
-                    if (synth.speaking) synth.cancel();
+                    if (isSpeechSupported && synth.speaking) {
+                        synth.cancel();
+                    }
                     if (isRecognizing && recognition) {
                         recognition.abort();
                         isRecognizing = false;
@@ -618,7 +633,13 @@ B: 谢谢！我非常期待。`;
                     updateScoreDisplay();
 
                     if (dialogues.length > 0) {
-                        setStatus(`📖 已解析 ${dialogues.length} 句，点击「播放」或长按「跟读」开始`);
+                        let msg = `📖 已解析 ${dialogues.length} 句，`;
+                        if (isSpeechSupported) {
+                            msg += '点击「播放」听原句，长按「跟读」录音评分';
+                        } else {
+                            msg += '⚠️ 当前浏览器不支持语音播放，但「跟读」评分功能可用';
+                        }
+                        setStatus(msg);
                     } else {
                         const lineCount = raw.split('\n').length;
                         setStatus(`⚠️ 未解析到有效对话（共 ${lineCount} 行），请确保格式如 "A: 内容"`, false, true);
@@ -657,23 +678,20 @@ B: 谢谢！我非常期待。`;
                 }
             });
 
-            if (synth) {
+            if (isSpeechSupported) {
                 synth.getVoices();
                 synth.onvoiceschanged = function() {
                     synth.getVoices();
                 };
             }
 
-            // 所有按钮统一使用 click 事件（手机完美支持）
             parseBtn.addEventListener('click', parseAndRender);
             loadExampleBtn.addEventListener('click', loadExample);
             playBtn.addEventListener('click', handlePlay);
 
-            // 跟读按钮使用 pointer 事件实现长按
             repeatBtn.addEventListener('pointerdown', handleRepeatStart);
             repeatBtn.addEventListener('pointerup', handleRepeatEnd);
             repeatBtn.addEventListener('pointerleave', handleRepeatEnd);
-            // 阻止 click 以免和 pointer 冲突
             repeatBtn.addEventListener('click', function(e) { e.preventDefault(); });
 
             nextBtn.addEventListener('click', handleNext);
@@ -684,7 +702,9 @@ B: 谢谢！我非常期待。`;
                 const idx = parseInt(item.dataset.index, 10);
                 if (!isNaN(idx) && idx >= 0 && idx < dialogues.length && idx !== currentIndex) {
                     if (isPlaying) {
-                        if (synth.speaking) synth.cancel();
+                        if (isSpeechSupported && synth.speaking) {
+                            synth.cancel();
+                        }
                         isPlaying = false;
                     }
                     if (isRepeating) {
@@ -715,13 +735,16 @@ B: 谢谢！我非常期待。`;
             dialogueInput.value = DEFAULT_EXAMPLE;
             setTimeout(() => {
                 parseAndRender();
-                if (synth) {
+                if (isSpeechSupported) {
                     setTimeout(() => { synth.getVoices(); }, 200);
                 }
             }, 100);
 
             console.log('🎯 口语练习工具已加载！');
-            console.log('💡 跟读方式：长按「跟读」按钮开始录音，松手结束并评分');
+            console.log('💡 点击「播放」听原句，长按「跟读」录音评分');
+            if (!isSpeechSupported) {
+                console.warn('⚠️ 当前浏览器不支持语音合成，播放功能不可用，但录音评分仍可使用。');
+            }
 
             window.__app = {
                 dialogues: () => dialogues,
