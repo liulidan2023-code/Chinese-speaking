@@ -113,8 +113,8 @@ B: That sounds like a wonderful idea.
 A: Let's go to the park then.
 B: Perfect, I'll get my coat.</textarea>
             <div class="input-tools">
-                <button class="btn btn-primary" id="parseBtn">📝 解析对话</button>
-                <button class="btn btn-outline btn-sm" id="loadExampleBtn">📋 加载示例</button>
+                <button type="button" class="btn btn-primary" id="parseBtn">📝 解析对话</button>
+                <button type="button" class="btn btn-outline btn-sm" id="loadExampleBtn">📋 加载示例</button>
                 <select class="lang-select" id="langSelect">
                     <option value="en-US">🇬🇧 英文</option>
                     <option value="zh-CN">🇨🇳 中文</option>
@@ -134,9 +134,9 @@ B: Perfect, I'll get my coat.</textarea>
         </div>
 
         <div class="control-section">
-            <button class="btn btn-primary btn-lg" id="playBtn" disabled>▶ 播放</button>
-            <button class="btn btn-success btn-lg" id="repeatBtn" disabled>🎤 跟读</button>
-            <button class="btn btn-outline" id="nextBtn" disabled>⏭ 下一句</button>
+            <button type="button" class="btn btn-primary btn-lg" id="playBtn" disabled>▶ 播放</button>
+            <button type="button" class="btn btn-success btn-lg" id="repeatBtn" disabled>🎤 跟读</button>
+            <button type="button" class="btn btn-outline" id="nextBtn" disabled>⏭ 下一句</button>
             <div class="toggle-wrap">
                 <input type="checkbox" id="autoNextCheck" checked>
                 <label for="autoNextCheck">自动下一句</label>
@@ -409,17 +409,22 @@ B: 谢谢！我非常期待。`;
             // ---------- 语音识别 ----------
             function initRecognition() {
                 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
                 if (!SR) {
-                    setStatus('❌ 浏览器不支持语音识别，请使用 Chrome 或 Edge', false, true);
+                    console.warn("SpeechRecognition not supported");
                     return null;
                 }
-                const rec = new SR();
-                const lang = getSpeechLang();
-                rec.lang = lang;
-                rec.continuous = false;
-                rec.interimResults = true;
-                rec.maxAlternatives = 1;
-                return rec;
+
+                try {
+                    const rec = new SR();
+                    rec.continuous = false;
+                    rec.interimResults = true;
+                    rec.maxAlternatives = 1;
+                    return rec;
+                } catch (e) {
+                    console.warn("SpeechRecognition init failed:", e);
+                    return null;
+                }
             }
 
             function startRecognition(callback) {
@@ -657,6 +662,10 @@ B: 谢谢！我非常期待。`;
             }
 
             parseBtn.addEventListener('click', parseAndRender);
+            parseBtn.addEventListener('touchend', function(e){
+                e.preventDefault();
+                parseAndRender();
+            });
             loadExampleBtn.addEventListener('click', loadExample);
             playBtn.addEventListener('click', handlePlay);
 
