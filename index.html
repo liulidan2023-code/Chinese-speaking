@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🎯 口语练习 · 跟读评分</title>
     <style>
-        /* ===== 全部样式保持原样 ===== */
+        /* ===== 全部样式保持不变 ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f5fc; color: #1e2a3a; padding: 16px 12px 30px; min-height: 100vh; display: flex; justify-content: center; }
         .app { max-width: 720px; width: 100%; background: #ffffff; border-radius: 28px; box-shadow: 0 12px 40px rgba(0,20,40,0.10); padding: 24px 20px 30px; }
@@ -158,7 +158,8 @@ B: Perfect, I'll get my coat.</textarea>
 
     <script>
         // ================================================================
-        // 修改后：跟读长按录音，松手结束并评分
+        // 修复：解析对话时先 trim 每一行，兼容手机换行和缩进
+        // 跟读：长按录音，松手评分（不播放原句）
         // ================================================================
 
         (function() {
@@ -191,8 +192,7 @@ B: Perfect, I'll get my coat.</textarea>
             let recognition = null;
             let synth = window.speechSynthesis;
             let currentUtterance = null;
-            let repeatTimeout = null;
-            let callbackCalled = false;    // 防止重复回调
+            let callbackCalled = false;
 
             // ---------- 示例 ----------
             const DEFAULT_EXAMPLE = `A: Hello, how are you doing today?
@@ -249,19 +249,22 @@ B: 谢谢！我非常期待。`;
                 return Math.min(100, score);
             }
 
-            // ---------- 解析 ----------
+            // ---------- 解析对话（修复：先 trim 每行） ----------
             function parseDialogue(text) {
-                const lines = text.split(/\n/).filter(line => line.trim() !== '');
+                const lines = text.split(/\n/);
                 const result = [];
                 const regex = /^([^:：]+)[:：]\s*(.*)$/;
-                for (const line of lines) {
-                    const match = line.match(regex);
+                for (let line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed === '') continue;
+                    const match = trimmed.match(regex);
                     if (match) {
                         const speaker = match[1].trim();
                         const content = match[2].trim();
                         if (content) result.push({ speaker, text: content, score: null });
                     } else {
-                        if (line.trim()) result.push({ speaker: '?', text: line.trim(), score: null });
+                        // 无法解析的行，作为无名句子
+                        result.push({ speaker: '?', text: trimmed, score: null });
                     }
                 }
                 return result;
@@ -405,12 +408,11 @@ B: 谢谢！我非常期待。`;
                 const lang = getSpeechLang();
                 rec.lang = lang;
                 rec.continuous = false;
-                rec.interimResults = true;   // 显示中间结果
+                rec.interimResults = true;
                 rec.maxAlternatives = 1;
                 return rec;
             }
 
-            // 开始录音，回调参数 (score 或 null)
             function startRecognition(callback) {
                 if (isRecognizing) {
                     if (recognition) recognition.abort();
@@ -475,10 +477,9 @@ B: 谢谢！我非常期待。`;
 
                 try {
                     recognition.start();
-                    // 超时保护（15秒），若用户未松手则自动结束
                     setTimeout(() => {
                         if (isRecognizing && !callbackCalled) {
-                            recognition.abort(); // 触发 onerror 或 onend
+                            recognition.abort();
                             isRecognizing = false;
                             if (!callbackCalled) {
                                 callbackCalled = true;
@@ -511,7 +512,6 @@ B: 谢谢！我非常期待。`;
                 }
             }
 
-            // 播放（仅播放）
             function handlePlay() {
                 if (isPlaying) {
                     if (synth.speaking) synth.cancel();
@@ -533,19 +533,17 @@ B: 谢谢！我非常期待。`;
 
             // ---------- 跟读：长按录音，松手结束 ----------
             function handleRepeatStart(e) {
-                e.preventDefault(); // 防止触屏弹出菜单
-                if (isRepeating) return; // 正在录音中
+                e.preventDefault();
+                if (isRepeating) return;
                 if (!dialogues.length) return;
                 if (currentIndex >= dialogues.length) currentIndex = 0;
 
-                // 如果正在播放，停止播放
                 if (synth.speaking) synth.cancel();
                 if (isPlaying) isPlaying = false;
 
                 isRepeating = true;
                 setStatus('🎤 长按录音，松手结束...', true);
 
-                // 直接启动录音，不播放原句
                 startRecognition((score) => {
                     isRepeating = false;
                     if (score !== null && score !== undefined) {
@@ -557,8 +555,7 @@ B: 谢谢！我非常期待。`;
                             setTimeout(() => { goToNext(); }, 1200);
                         }
                     } else {
-                        // 错误信息已在 startRecognition 中设置
-                        // 但若 score 为 null，已经显示了错误提示
+                        // 错误已显示
                     }
                 });
             }
@@ -566,18 +563,13 @@ B: 谢谢！我非常期待。`;
             function handleRepeatEnd(e) {
                 e.preventDefault();
                 if (!isRepeating) return;
-                // 停止识别
                 if (recognition && isRecognizing) {
                     try {
-                        recognition.stop(); // 触发 onend
-                    } catch (err) {
-                        // 忽略
-                    }
+                        recognition.stop();
+                    } catch (err) {}
                 }
-                // 注意：isRepeating 会在回调中置为 false
             }
 
-            // 下一句
             function handleNext() {
                 if (isPlaying) {
                     if (synth.speaking) synth.cancel();
@@ -656,13 +648,11 @@ B: 谢谢！我非常期待。`;
             // 跟读按钮：长按录音
             repeatBtn.addEventListener('pointerdown', handleRepeatStart);
             repeatBtn.addEventListener('pointerup', handleRepeatEnd);
-            repeatBtn.addEventListener('pointerleave', handleRepeatEnd); // 若手指滑出按钮
-            // 阻止 click 事件（避免与 pointer 冲突）
+            repeatBtn.addEventListener('pointerleave', handleRepeatEnd);
             repeatBtn.addEventListener('click', function(e) { e.preventDefault(); });
 
             nextBtn.addEventListener('click', handleNext);
 
-            // 点击对话项跳转
             dialogueList.addEventListener('click', function(e) {
                 const item = e.target.closest('.dialogue-item');
                 if (!item) return;
@@ -686,7 +676,6 @@ B: 谢谢！我非常期待。`;
                 }
             });
 
-            // 键盘快捷键
             document.addEventListener('keydown', function(e) {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')
                     return;
@@ -695,8 +684,6 @@ B: 谢谢！我非常期待。`;
                     if (playBtn.disabled) return;
                     handlePlay();
                 }
-                // 由于跟读改为长按，快捷键 Ctrl+Enter 保留为快速启动录音（但需要按住，较难实现，故保留原功能，但此处不再映射）
-                // 可移除或保留为快速开始录音，但建议忽略
             });
 
             // ---------- 初始化 ----------
