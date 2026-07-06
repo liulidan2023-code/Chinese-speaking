@@ -662,7 +662,10 @@ B: 谢谢！我非常期待。`;
                 };
             }
 
-            parseBtn.addEventListener('click', parseAndRender);
+            parseBtn.onclick = function () {
+                alert("按钮点击成功");
+                parseAndRender();
+            };
             parseBtn.addEventListener('touchend', function(e){
                 e.preventDefault();
                 parseAndRender();
