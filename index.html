@@ -158,7 +158,7 @@ B: 谢谢！我非常期待。</textarea>
 
     <script>
         // ================================================================
-        // 点击切换模式：点击开始录音，再次点击停止并评分
+        // 修复：清除首尾不可见字符，选择更自然的语音
         // ================================================================
 
         (function() {
@@ -186,8 +186,8 @@ B: 谢谢！我非常期待。</textarea>
             let dialogues = [];
             let currentIndex = 0;
             let isPlaying = false;
-            let isRecording = false;        // 是否正在录音
-            let isRecognizing = false;      // 识别是否进行中
+            let isRecording = false;
+            let isRecognizing = false;
             let recognition = null;
             let synth = window.speechSynthesis;
             let currentUtterance = null;
@@ -264,7 +264,9 @@ B: 谢谢！我非常期待。`;
                     const match = trimmed.match(regex);
                     if (match) {
                         const speaker = match[1].trim();
-                        const content = match[2].trim();
+                        let content = match[2].trim();
+                        // 清除不可见字符（零宽字符等）
+                        content = content.replace(/[\u200B-\u200D\uFEFF]/g, '');
                         if (content) {
                             result.push({ speaker, text: content, score: null });
                         }
@@ -357,7 +359,7 @@ B: 谢谢！我非常期待。`;
                 `;
             }
 
-            // ---------- 语音合成 ----------
+            // ---------- 语音合成（修复首字丢失 + 自然语音） ----------
             function speakCurrent(callback) {
                 if (!isSpeechSupported) {
                     setStatus('❌ 当前浏览器不支持语音播放，请使用 Chrome 或 Edge 浏览器', false, true);
@@ -369,7 +371,15 @@ B: 谢谢！我非常期待。`;
                     return;
                 }
                 const item = dialogues[currentIndex];
-                const text = item.text;
+                let text = item.text;
+                // 清除首尾不可见字符（零宽字符、BOM等）
+                text = text.replace(/^[\s\u200B-\u200D\uFEFF]+/, '').replace(/[\s\u200B-\u200D\uFEFF]+$/, '');
+                if (!text) {
+                    setStatus('⚠️ 当前句子为空，无法播放', false, true);
+                    if (callback) callback();
+                    return;
+                }
+
                 const rate = parseFloat(speedRange.value) || 1.0;
 
                 if (synth.speaking) synth.cancel();
@@ -380,9 +390,37 @@ B: 谢谢！我非常期待。`;
                 utterance.pitch = 1.0;
                 utterance.volume = 1.0;
 
+                // 选择更自然的语音
                 const voices = synth.getVoices();
-                const preferred = voices.find(v => v.lang.startsWith(utterance.lang.split('-')[0]));
-                if (preferred) utterance.voice = preferred;
+                let selectedVoice = null;
+                const lang = utterance.lang;
+
+                // 优先选择 Google 或系统自然语音
+                // 按优先级：1. 包含 'Google' 或 'Natural'，2. 本地语音，3. 任意匹配语音
+                const candidates = voices.filter(v => v.lang.startsWith(lang.split('-')[0]));
+                if (candidates.length > 0) {
+                    // 尝试找 Google 或 Natural
+                    const preferred = candidates.find(v =>
+                        v.name.toLowerCase().includes('google') ||
+                        v.name.toLowerCase().includes('natural') ||
+                        v.name.toLowerCase().includes('female') ||
+                        v.name.toLowerCase().includes('male')
+                    );
+                    if (preferred) {
+                        selectedVoice = preferred;
+                    } else {
+                        // 否则找第一个本地服务语音（通常质量较高）
+                        const local = candidates.find(v => v.localService === true);
+                        selectedVoice = local || candidates[0];
+                    }
+                }
+
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                    console.log('✅ 使用语音:', selectedVoice.name);
+                } else {
+                    console.warn('⚠️ 未找到合适语音，使用默认');
+                }
 
                 currentUtterance = utterance;
                 isPlaying = true;
@@ -436,22 +474,18 @@ B: 谢谢！我非常期待。`;
                 }
             }
 
-            // 开始录音（点击调用）
             function startRecording() {
                 if (isRecording) return;
                 if (!dialogues.length) return;
                 if (currentIndex >= dialogues.length) currentIndex = 0;
 
-                // 如果正在播放，停止播放
                 if (isSpeechSupported && synth.speaking) {
                     synth.cancel();
                 }
                 isPlaying = false;
 
-                // 创建识别实例
                 recognition = initRecognition();
                 if (!recognition) {
-                    // 错误已显示
                     return;
                 }
 
@@ -494,7 +528,6 @@ B: 谢谢！我非常期待。`;
                             msg = `❌ 识别错误: ${event.error}`;
                         }
                         setStatus(msg, false, true);
-                        // 由于出错，不进行评分
                     }
                 };
 
@@ -510,7 +543,6 @@ B: 谢谢！我非常期待。`;
                             dialogues[currentIndex].score = score;
                             renderDialogues();
                             setStatus(`✅ 识别完成: "${recognizedText}"`, false);
-                            // 自动下一句
                             if (autoNextCheck.checked) {
                                 setTimeout(() => { goToNext(); }, 1200);
                             }
@@ -534,34 +566,26 @@ B: 谢谢！我非常期待。`;
                 }
             }
 
-            // 停止录音（点击调用）
             function stopRecording() {
                 if (!isRecording && !isRecognizing) {
-                    // 如果不在录音状态，但按钮显示为停止，恢复按钮
                     repeatBtn.textContent = '🎤 跟读';
                     return;
                 }
                 if (recognition) {
                     try {
                         recognition.stop();
-                    } catch (e) {
-                        // 忽略
-                    }
+                    } catch (e) {}
                 }
-                // 注意：onend 会自动处理后续
                 setStatus('⏹ 正在停止录音...', true);
             }
 
-            // 切换按钮点击
             function handleRepeatToggle() {
                 if (!dialogues.length) return;
                 if (currentIndex >= dialogues.length) currentIndex = 0;
 
                 if (isRecording || isRecognizing) {
-                    // 当前正在录音 → 停止
                     stopRecording();
                 } else {
-                    // 当前未录音 → 开始
                     startRecording();
                 }
             }
@@ -610,7 +634,6 @@ B: 谢谢！我非常期待。`;
                     isPlaying = false;
                 }
                 if (isRecording || isRecognizing) {
-                    // 如果正在录音，强制停止
                     if (recognition) {
                         try { recognition.abort(); } catch(e) {}
                     }
@@ -688,6 +711,7 @@ B: 谢谢！我非常期待。`;
             });
 
             if (isSpeechSupported) {
+                // 预加载语音列表
                 synth.getVoices();
                 synth.onvoiceschanged = function() {
                     synth.getVoices();
@@ -697,10 +721,7 @@ B: 谢谢！我非常期待。`;
             parseBtn.addEventListener('click', parseAndRender);
             loadExampleBtn.addEventListener('click', loadExample);
             playBtn.addEventListener('click', handlePlay);
-
-            // 跟读按钮：点击切换录音状态
             repeatBtn.addEventListener('click', handleRepeatToggle);
-
             nextBtn.addEventListener('click', handleNext);
 
             dialogueList.addEventListener('click', function(e) {
@@ -755,6 +776,7 @@ B: 谢谢！我非常期待。`;
 
             console.log('🎯 口语练习工具已加载！');
             console.log('💡 点击「播放」听原句，点击「跟读」开始录音，再次点击停止并评分');
+            console.log('🔊 已修复首字丢失问题，并自动选择更自然的语音。');
 
             window.__app = {
                 dialogues: () => dialogues,
