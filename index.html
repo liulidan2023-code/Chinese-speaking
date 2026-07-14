@@ -158,7 +158,7 @@ B: 谢谢！我非常期待。</textarea>
 
     <script>
         // ================================================================
-        // 解决暂停自动停止：continuous = true，持续录音直到用户停止
+        // 修复：强制选择普通话（zh-CN）自然人声语音
         // ================================================================
 
         (function() {
@@ -186,12 +186,13 @@ B: 谢谢！我非常期待。</textarea>
             let dialogues = [];
             let currentIndex = 0;
             let isPlaying = false;
-            let isRecording = false;          // 用户是否处于录音状态（点击开始后为 true）
+            let isRecording = false;
             let recognition = null;
             let synth = window.speechSynthesis;
             let currentUtterance = null;
-            let currentRecognizedText = '';   // 最终识别文本
-            let userStopped = false;          // 标记是否由用户主动停止
+            let currentRecognizedText = '';
+            let userStopped = false;
+            let preferredVoice = null; // 缓存选中的语音
 
             const isSpeechSupported = (typeof synth !== 'undefined' && synth !== null);
 
@@ -358,6 +359,69 @@ B: 谢谢！我非常期待。`;
                 `;
             }
 
+            // ---------- 获取最佳普通话语音 ----------
+            function getBestMandarinVoice() {
+                if (!isSpeechSupported) return null;
+                // 如果已缓存且可用，直接返回
+                if (preferredVoice) {
+                    // 检查语音是否仍然有效
+                    const voices = synth.getVoices();
+                    if (voices.includes(preferredVoice)) {
+                        return preferredVoice;
+                    }
+                }
+
+                const voices = synth.getVoices();
+                // 1. 首先筛选 zh-CN 语音
+                const zhVoices = voices.filter(v => v.lang === 'zh-CN' || v.lang.startsWith('zh-CN'));
+                if (zhVoices.length === 0) {
+                    // 如果没有 zh-CN，尝试 zh 开头的
+                    const zhAny = voices.filter(v => v.lang.startsWith('zh'));
+                    if (zhAny.length > 0) {
+                        // 优先选择 Google 或 Natural
+                        const preferred = zhAny.find(v =>
+                            v.name.toLowerCase().includes('google') ||
+                            v.name.toLowerCase().includes('natural') ||
+                            v.name.toLowerCase().includes('普通话') ||
+                            v.name.toLowerCase().includes('mandarin') ||
+                            v.name.toLowerCase().includes('female') ||
+                            v.name.toLowerCase().includes('女声')
+                        );
+                        preferredVoice = preferred || zhAny[0];
+                        return preferredVoice;
+                    }
+                    return null;
+                }
+
+                // 2. 在 zh-CN 中优先选择高质量语音
+                // 优先级：Google > Natural > 普通话 > 女声 > 本地 > 其他
+                const priorityKeywords = [
+                    'google', 'natural', '普通话', 'mandarin',
+                    'female', '女声', '标准', 'standard', '高质'
+                ];
+
+                for (const keyword of priorityKeywords) {
+                    const found = zhVoices.find(v =>
+                        v.name.toLowerCase().includes(keyword)
+                    );
+                    if (found) {
+                        preferredVoice = found;
+                        return found;
+                    }
+                }
+
+                // 3. 选择本地语音（通常更自然）
+                const local = zhVoices.find(v => v.localService === true);
+                if (local) {
+                    preferredVoice = local;
+                    return local;
+                }
+
+                // 4. 最后回退到第一个 zh-CN 语音
+                preferredVoice = zhVoices[0];
+                return zhVoices[0];
+            }
+
             // ---------- 语音合成 ----------
             function speakCurrent(callback) {
                 if (!isSpeechSupported) {
@@ -383,26 +447,21 @@ B: 谢谢！我非常期待。`;
                 if (synth.speaking) synth.cancel();
 
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = getSpeechLang();
+                // 强制使用 zh-CN
+                utterance.lang = 'zh-CN';
                 utterance.rate = rate;
                 utterance.pitch = 1.0;
                 utterance.volume = 1.0;
 
-                const voices = synth.getVoices();
-                let selectedVoice = null;
-                const lang = utterance.lang;
-                const candidates = voices.filter(v => v.lang.startsWith(lang.split('-')[0]));
-                if (candidates.length > 0) {
-                    const preferred = candidates.find(v =>
-                        v.name.toLowerCase().includes('google') ||
-                        v.name.toLowerCase().includes('natural') ||
-                        v.name.toLowerCase().includes('female') ||
-                        v.name.toLowerCase().includes('male')
-                    );
-                    selectedVoice = preferred || candidates.find(v => v.localService === true) || candidates[0];
-                }
-                if (selectedVoice) {
-                    utterance.voice = selectedVoice;
+                // 获取最佳普通话语音
+                const voice = getBestMandarinVoice();
+                if (voice) {
+                    utterance.voice = voice;
+                    console.log('✅ 使用语音:', voice.name, '(语言:', voice.lang, ')');
+                } else {
+                    console.warn('⚠️ 未找到合适的普通话语音，使用默认语音');
+                    // 尝试设置 lang 为 zh-CN，让浏览器自动选择
+                    utterance.lang = 'zh-CN';
                 }
 
                 currentUtterance = utterance;
@@ -424,6 +483,7 @@ B: 谢谢！我非常期待。`;
                 synth.speak(utterance);
             }
 
+            // 获取识别语言（跟读用）
             function getSpeechLang() {
                 const val = langSelect.value;
                 if (val === 'auto') {
@@ -433,7 +493,7 @@ B: 谢谢！我非常期待。`;
                 return val;
             }
 
-            // ---------- 语音识别（continuous = true，不因静音停止） ----------
+            // ---------- 语音识别（continuous = true） ----------
             function startRecording() {
                 if (isRecording) return;
                 if (!dialogues.length) return;
@@ -452,7 +512,7 @@ B: 谢谢！我非常期待。`;
 
                 try {
                     recognition = new SR();
-                    recognition.continuous = true;      // 关键：持续录音，不因暂停停止
+                    recognition.continuous = true;
                     recognition.interimResults = true;
                     recognition.maxAlternatives = 1;
                     recognition.lang = getSpeechLang();
@@ -464,20 +524,18 @@ B: 谢谢！我非常期待。`;
                     setStatus('🎤 正在录音... 点击「停止录音」结束', true);
 
                     recognition.onresult = function(event) {
-                        // 获取最终识别结果（连续模式下，可能返回多个结果，取最后一个 final）
                         let finalText = '';
                         for (let i = event.resultIndex; i < event.results.length; i++) {
                             if (event.results[i].isFinal) {
-                                finalText += event.results[i][0].transcript.trim();
+                                finalText += event.results[i][0].transcript.trim() + ' ';
                             } else {
-                                // 中间结果，仅显示
                                 const interim = event.results[i][0].transcript.trim();
                                 setStatus(`🎤 正在听: ${interim}`, true);
                             }
                         }
                         if (finalText) {
-                            currentRecognizedText = finalText;
-                            setStatus(`✅ 识别到: "${finalText}"`, false);
+                            currentRecognizedText = finalText.trim();
+                            setStatus(`✅ 识别到: "${currentRecognizedText}"`, false);
                         }
                     };
 
@@ -485,27 +543,23 @@ B: 谢谢！我非常期待。`;
                         console.warn('Recognition error:', event.error);
                         if (event.error === 'not-allowed') {
                             setStatus('❌ 请允许使用麦克风权限', false, true);
-                            stopRecording(); // 自动停止
+                            stopRecording();
                         } else if (event.error === 'no-speech') {
-                            // 连续模式下 no-speech 不会触发停止，无需处理
+                            // continuous 模式下 no-speech 不会触发停止
                         } else {
-                            // 其他错误，停止录音
                             setStatus(`❌ 识别错误: ${event.error}`, false, true);
                             stopRecording();
                         }
                     };
 
                     recognition.onend = function() {
-                        // 如果用户没有主动停止（即 userStopped 为 false），说明是意外结束，尝试重启
                         if (isRecording && !userStopped) {
-                            // 可能是权限或其他问题，尝试重新启动
                             setTimeout(() => {
                                 if (isRecording) {
                                     startRecording();
                                 }
                             }, 300);
                         } else if (userStopped) {
-                            // 用户主动停止，进行评分
                             if (currentRecognizedText) {
                                 const original = dialogues[currentIndex]?.text || '';
                                 const score = similarityScore(original, currentRecognizedText);
@@ -518,7 +572,6 @@ B: 谢谢！我非常期待。`;
                             } else {
                                 setStatus('⏳ 未识别到语音，请重试', false, true);
                             }
-                            // 恢复按钮状态
                             isRecording = false;
                             repeatBtn.textContent = '🎤 跟读';
                         }
@@ -538,18 +591,15 @@ B: 谢谢！我非常期待。`;
                     repeatBtn.textContent = '🎤 跟读';
                     return;
                 }
-                // 标记为用户主动停止
                 userStopped = true;
                 if (recognition) {
                     try {
                         recognition.stop();
                     } catch (e) {}
                 }
-                // 注意：onend 会被触发，进行评分
                 setStatus('⏹ 正在停止录音...', true);
             }
 
-            // 切换按钮
             function handleRepeatToggle() {
                 if (!dialogues.length) return;
                 if (currentIndex >= dialogues.length) currentIndex = 0;
@@ -605,7 +655,6 @@ B: 谢谢！我非常期待。`;
                     isPlaying = false;
                 }
                 if (isRecording) {
-                    // 强制停止录音（不评分）
                     if (recognition) {
                         try { recognition.abort(); } catch(e) {}
                     }
@@ -640,6 +689,13 @@ B: 谢谢！我非常期待。`;
                         let msg = `📖 已解析 ${dialogues.length} 句，`;
                         if (isSpeechSupported) {
                             msg += '点击「播放」听原句，点击「跟读」开始录音，再次点击停止并评分';
+                            // 预加载语音
+                            setTimeout(() => {
+                                const voice = getBestMandarinVoice();
+                                if (voice) {
+                                    console.log('✅ 已选择普通话语音:', voice.name);
+                                }
+                            }, 200);
                         } else {
                             msg += '⚠️ 当前浏览器不支持语音播放，但「跟读」评分功能可用。建议使用 Chrome。';
                         }
@@ -683,10 +739,21 @@ B: 谢谢！我非常期待。`;
             });
 
             if (isSpeechSupported) {
-                synth.getVoices();
-                synth.onvoiceschanged = function() {
+                // 预加载语音列表
+                if (synth.getVoices().length === 0) {
+                    synth.onvoiceschanged = function() {
+                        synth.getVoices();
+                        // 预选语音
+                        getBestMandarinVoice();
+                    };
+                } else {
+                    getBestMandarinVoice();
+                }
+                // 确保语音加载
+                setTimeout(() => {
                     synth.getVoices();
-                };
+                    getBestMandarinVoice();
+                }, 200);
             }
 
             parseBtn.addEventListener('click', parseAndRender);
@@ -740,12 +807,19 @@ B: 谢谢！我非常期待。`;
             setTimeout(() => {
                 parseAndRender();
                 if (isSpeechSupported) {
-                    setTimeout(() => { synth.getVoices(); }, 200);
+                    setTimeout(() => {
+                        synth.getVoices();
+                        const voice = getBestMandarinVoice();
+                        if (voice) {
+                            console.log('✅ 已选择普通话语音:', voice.name);
+                        }
+                    }, 300);
                 }
             }, 100);
 
             console.log('🎯 口语练习工具已加载！');
-            console.log('💡 点击「播放」听原句，点击「跟读」开始录音（持续录音，不会因暂停停止），再次点击停止并评分');
+            console.log('🔊 已设置为普通话（zh-CN）自然人声播放');
+            console.log('💡 点击「播放」听原句，点击「跟读」开始录音，再次点击停止并评分');
 
             window.__app = {
                 dialogues: () => dialogues,
